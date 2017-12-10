@@ -1,13 +1,12 @@
 PROJECT=github.com/rsrdesarrollo/tunneler
 BINS=tunnelerd tunnelerc
 
-.PHONY: all clean deps $(BINS)
+.PHONY: all clean $(BINS)
 
 all: $(BINS)
 
-$(BINS): 
-	#go build -i -v -o $@.out -ldflags="-X main.version=$$(git describe --tags --long)" $(PROJECT)/main/$@
-	go install -v -ldflags="-X main.version=$$(git describe --tags --long)" $(PROJECT)/main/$@
+$(BINS):
+	go build -i -o build/$@ -v -ldflags="-X main.version=$$(git describe --tags --long)" $(PROJECT)/main/$@
 
 clean:
 	rm $(BINS)
