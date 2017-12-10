@@ -5,78 +5,59 @@ import (
 	flags "github.com/jessevdk/go-flags"
 
 	"errors"
-	"fmt"
-	"regexp"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/profile"
-	"github.com/rsrdesarrollo/tunneler/common"
-	"github.com/rsrdesarrollo/tunneler/messages"
-	"os"
-	"os/signal"
+	"github.com/rsrdesarrollo/tunneler/aux"
+	"github.com/spf13/viper"
+	"net/http"
 )
-
-func main() {
-	err := Run()
-
-	if err != nil {
-		fmt.Println("ERROR: ", err)
-	}
-}
 
 var logger log.Logger
 
-type Tunnel struct {
-	Protocol       string
-	BindService    string
-	ConnectService string
-}
-
 var options struct {
-	Verbose      []bool `short:"v" long:"verbose" description:"Show verbose debug information"`
-	Server       string `short:"s" long:"server" description:"tunneler server address" default:"ws://localhost:8080/ws"`
 	RemoteTunnel string `short:"R" description:"remote tunnel address"`
 	LocalTunnel  string `short:"L" description:"local tunnel address"`
 	Profile      bool   `long:"profile" description:"profile application"`
 	Protocol     string `short:"p" description:"tunnel protocol (tcp/udp)" default:"tcp" choice:"tcp" choice:"udp"`
 }
 
-func parseTunnelString(protocol string, tunnel string) (*Tunnel, error) {
-	tunnelRegex := regexp.MustCompile(`^(?P<BindService>(?:[^:]+:)?[^:]+):(?P<ConnectService>[^:]+:[^:]+)$`)
+func main() {
+	configureViper()
 
-	ok := tunnelRegex.MatchString(tunnel)
+	err := initialize()
 
-	if ok {
-		match := tunnelRegex.FindStringSubmatch(tunnel)
+	defer logger.Close()
 
-		return &Tunnel{
-			Protocol:       protocol,
-			BindService:    match[1],
-			ConnectService: match[2],
-		}, nil
-	} else {
-		return nil, errors.New("invalid tunnel format")
+	if err != nil {
+		logger.Critical(err)
+		return
+	}
+
+	err = run()
+
+	if err != nil {
+		logger.Critical(err)
+		return
 	}
 }
 
-func Run() error {
 
+func initialize() error {
 	flags.Parse(&options)
 
-	if options.Profile {
-		defer profile.Start().Stop()
+	logger = log.NewDefaultLogger(aux.LogLevel(viper.GetString("LogLevel")))
+
+	if !viper.IsSet("Token") {
+		return errors.New("need to specify Token in configuration")
 	}
 
-	if len(options.Verbose) > 3 {
-		logger = log.NewDefaultLogger(log.DEBUG)
-	} else if len(options.Verbose) == 3 {
-		logger = log.NewDefaultLogger(log.TRACE)
-	} else if len(options.Verbose) == 2 {
-		logger = log.NewDefaultLogger(log.INFO)
-	} else if len(options.Verbose) == 1 {
-		logger = log.NewDefaultLogger(log.WARNING)
-	} else {
-		logger = log.NewDefaultLogger(log.ERROR)
+	return nil
+}
+
+func run() error {
+	if options.Profile {
+		defer profile.Start().Stop()
 	}
 
 	if options.RemoteTunnel != "" && options.LocalTunnel != "" {
@@ -90,7 +71,9 @@ func Run() error {
 		ReadBufferSize:  40960,
 	}
 
-	ws, _, err := dialer.Dial(options.Server, nil)
+	ws, _, err := dialer.Dial(viper.GetString("Server"), http.Header{
+		"Authorization": {"Bearer " + viper.GetString("Token")},
+	})
 
 	if err != nil {
 		return err
@@ -126,68 +109,4 @@ func Run() error {
 	}
 
 	return err
-}
-
-func createRemoteTunnel(wsocket *websocket.Conn, tunnel *Tunnel) error {
-	logger.Debug("createRemoteTunnel")
-
-	exitPoint, err := common.NewExitPoint(wsocket, tunnel.Protocol, tunnel.ConnectService, logger)
-	if err != nil {
-		return err
-	}
-
-	exitPoint.WebsocketWritterChannel <- messages.CreateRemoteTunnelMessage(tunnel.Protocol, tunnel.BindService)
-	response := <-exitPoint.WebsocketReaderChannel
-
-	if response.Type == messages.MessageType.Error {
-		return errors.New(response.Description)
-	} else if response.Type == messages.MessageType.RemoteTunnelReady {
-		logger.Info("Remote tunnel binded on %s://%s", response.Protocol, response.Service)
-	} else {
-		return errors.New("protocol mistmach")
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for _ = range c {
-			exitPoint.CloseChannel()
-		}
-	}()
-
-	<-exitPoint.Done
-
-	return nil
-}
-
-func createLocalTunnel(wsocket *websocket.Conn, tunnel *Tunnel) error {
-	logger.Debug("createLocalTunnel")
-
-	entryPoint, err := common.NewEntryPoint(wsocket, tunnel.Protocol, tunnel.BindService, logger)
-	if err != nil {
-		return err
-	}
-
-	entryPoint.WebsocketWritterChannel <- messages.CreateLocalTunnelMessage(tunnel.Protocol, tunnel.ConnectService)
-	response := <-entryPoint.WebsocketReaderChannel
-
-	if response.Type == messages.MessageType.Error {
-		return errors.New(response.Description)
-	} else if response.Type == messages.MessageType.LocalTunnelReady {
-		logger.Info("Local tunnel binded on %s://%s", response.Protocol, response.Service)
-	} else {
-		return errors.New("protocol mistmach")
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for _ = range c {
-			entryPoint.CloseChannel()
-		}
-	}()
-
-	<-entryPoint.Done
-
-	return nil
 }

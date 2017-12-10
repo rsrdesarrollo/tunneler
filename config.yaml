@@ -1,0 +1,10 @@
+## Common configuration
+LogLevel: DEBUG
+
+## Sample tunnelerd configuration
+BindAddress: 127.0.0.1:9000
+#SecretKey: Set some secret key for JWT tokens.
+
+## Sample tunnelerc configuration
+Server: ws://127.0.0.1:9000/ws
+#Token: eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1NDQwMjAzMzcsImlhdCI6MTUxMjkxNjMzNywiaXNzIjoidHVubmVsZXJkIiwic3ViIjoidHVubmVsZXIifQ.9AWysRpsm5kIe6mwZlUPdk9otZJPLhDl1uoUkQoxIGrqC8JK7dJCYXHXPhH6BVeKfv3jHznZKK326ji5mYCY1w
