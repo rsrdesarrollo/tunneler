@@ -4,6 +4,7 @@ import (
 	"github.com/alecthomas/log4go"
 	"io"
 	"net"
+	"github.com/spf13/viper"
 )
 
 type Client struct {
@@ -27,7 +28,7 @@ func (self *Client) ClientHandler(point TunnelPoint) {
 
 	defer self.connection.Close()
 
-	buffer := make([]byte, 40960)
+	buffer := make([]byte, viper.GetInt("ClientSocketBuffer"))
 
 	for point.IsOpen() {
 		readLen, err := self.connection.Read(buffer)

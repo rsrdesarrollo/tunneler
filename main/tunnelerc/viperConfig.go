@@ -9,6 +9,11 @@ func configureViper() {
 	viper.SetConfigType("yaml")
 
 	viper.SetDefault("LogLevel", "INFO")
+
+	viper.SetDefault("ReadBufferSize", 40960)
+	viper.SetDefault("WriteBufferSize", 40960)
+	viper.SetDefault("ClientSocketBuffer", 40960)
+
 	viper.SetDefault("Server", "ws://127.0.0.1:9000")
 
 	viper.SetConfigName("config")

@@ -11,11 +11,16 @@ import (
 	"github.com/rsrdesarrollo/tunneler/aux"
 	"github.com/spf13/viper"
 	"net/http"
+	"net/url"
+	"fmt"
+	"os"
 )
 
 var logger log.Logger
+var version = "undefined"
 
 var options struct {
+	PrintVersion  bool   `long:"version" description:"print version and exit"`
 	RemoteTunnel string `short:"R" description:"remote tunnel address"`
 	LocalTunnel  string `short:"L" description:"local tunnel address"`
 	Profile      bool   `long:"profile" description:"profile application"`
@@ -42,9 +47,13 @@ func main() {
 	}
 }
 
-
 func initialize() error {
 	flags.Parse(&options)
+
+	if options.PrintVersion{
+		fmt.Printf("Version: %s\n", version)
+		os.Exit(0)
+	}
 
 	logger = log.NewDefaultLogger(aux.LogLevel(viper.GetString("LogLevel")))
 
@@ -64,11 +73,27 @@ func run() error {
 		return errors.New("unable to create local and remote tunnel at the same time")
 	}
 
-	//urlProxy, _ := url.Parse("http://127.0.0.1:8080")
-	dialer := websocket.Dialer{
-		//Proxy:           http.ProxyURL(urlProxy),
-		WriteBufferSize: 40960,
-		ReadBufferSize:  40960,
+	var dialer websocket.Dialer
+
+	if viper.IsSet("Proxy") {
+		urlProxy, err := url.Parse(viper.GetString("Proxy"))
+
+		if err != nil {
+			return err
+		}
+
+		logger.Info("Using proxy at %s", urlProxy.String())
+
+		dialer = websocket.Dialer{
+			Proxy:           http.ProxyURL(urlProxy),
+			WriteBufferSize: viper.GetInt("WriteBufferSize"),
+			ReadBufferSize:  viper.GetInt("ReadBufferSize"),
+		}
+	} else {
+		dialer = websocket.Dialer{
+			WriteBufferSize: viper.GetInt("WriteBufferSize"),
+			ReadBufferSize:  viper.GetInt("ReadBufferSize"),
+		}
 	}
 
 	ws, _, err := dialer.Dial(viper.GetString("Server"), http.Header{

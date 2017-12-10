@@ -13,12 +13,16 @@ import (
 	"github.com/spf13/viper"
 	"time"
 	"errors"
+	"fmt"
+	"os"
 )
 
 var logger log.Logger
 var secret_key []byte
+var version = "undefined"
 
 var options struct {
+	PrintVersion  bool   `long:"version" description:"print version and exit"`
 	Profile        bool   `long:"profile" description:"profile application"`
 	GenerateToken  bool   `long:"generate-token" description:"run token generation for a user and exit"`
 	User           string `short:"u" long:"user" description:"username for the token to be generated"`
@@ -49,6 +53,11 @@ func main() {
 
 func initialize() error {
 	flags.Parse(&options)
+
+	if options.PrintVersion{
+		fmt.Printf("Version: %s\n", version)
+		os.Exit(0)
+	}
 
 	logger = log.NewDefaultLogger(aux.LogLevel(viper.GetString("LogLevel")))
 
