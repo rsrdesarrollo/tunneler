@@ -6,7 +6,8 @@ BINS=tunnelerd tunnelerc
 all: $(BINS)
 
 $(BINS): 
-	go build -i -v -o $@.out -ldflags="-X main.version=$$(git describe --tags --long)" $(PROJECT)/main/$@
+	#go build -i -v -o $@.out -ldflags="-X main.version=$$(git describe --tags --long)" $(PROJECT)/main/$@
+	go install -v -ldflags="-X main.version=$$(git describe --tags --long)" $(PROJECT)/main/$@
 
 clean:
 	rm $(BINS)
