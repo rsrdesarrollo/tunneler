@@ -16,7 +16,7 @@ func configureViper() {
 
 	viper.SetDefault("Server", "ws://127.0.0.1:9000")
 	viper.BindEnv("HttpProxy", "http_proxy")
-	viper.RegisterAlias("Proxy","HttpProxy")
+	viper.RegisterAlias("HttpProxy", "Proxy")
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath("/etc/tunnelerc/")
